@@ -42,7 +42,7 @@ public class RunAllcator {
 		}
 
 	}
-	
+	 
 	//FIFO algorithm to allocate the resources
 	public static void FIFO(Resource[] resources, Task[] tasks) {
 		int finish = 0;
