@@ -1,5 +1,6 @@
 package project3;
 
+//represent each kind of resource available 
 public class Resource {
 	int total;
 	int occupied;

@@ -1,5 +1,6 @@
 package project3;
 
+//represent each activity to be performed
 public class Activity {
 	String type; 
 	int delay;

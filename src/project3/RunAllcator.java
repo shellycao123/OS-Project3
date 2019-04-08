@@ -9,8 +9,8 @@ public class RunAllcator {
 	public static void main(String[] args) {
 		//initialize the program by reading the input
 		try {
-			String fName = new Scanner(System.in).nextLine();
-			File file= new File(fName);
+			File file= new File(args[0]);
+			
 			Scanner fs = new Scanner(file);
 			Task[] tasks = new Task[fs.nextInt()]; //create list of tasks
 			int total = fs.nextInt();
@@ -29,15 +29,12 @@ public class RunAllcator {
 			
 			//run the FIFO algorithm
 			FIFO(resources,tasks);
+			//reset the data fields of the tasks
 			for(Task task: tasks) {
 				task.reset();
 			}
 			Banker(resources,tasks);
 
-			
-		
-			
-			
 			
 		}
 		catch(FileNotFoundException e){
@@ -46,6 +43,7 @@ public class RunAllcator {
 
 	}
 	
+	//FIFO algorithm to allocate the resources
 	public static void FIFO(Resource[] resources, Task[] tasks) {
 		int finish = 0;
 		ArrayList<Task> blocked = new ArrayList<>();
@@ -53,7 +51,7 @@ public class RunAllcator {
 		boolean lastDead = false;//if the last cycle is to resolve deadlock
 		
 		//loop thru the tasks for each cycle
-		while(finish != tasks.length){
+		while(finish != tasks.length){//if there is still tasks in the system,continue looping
 			ArrayList<Task> unblocked = new ArrayList<>();
 			int[] released = new int[resources.length];
 			
@@ -61,7 +59,7 @@ public class RunAllcator {
 			for(Task bl : blocked) {
 				bl.totalTime++;
 				Activity cur = bl.act.get(pointer[bl.pos]);
-				if(resources[cur.resource-1].available >= cur.claim) {
+				if(resources[cur.resource-1].available >= cur.claim) {//if the blocked can be run
 					resources[cur.resource-1].available -= cur.claim;
 					bl.curDelay = bl.act.get(++pointer[bl.pos]).delay;
 					bl.cur[cur.resource-1] +=cur.claim;
@@ -106,9 +104,8 @@ public class RunAllcator {
 							}
 							break;
 						case("release"):
-							System.out.println("Task"+task.pos+" completes its release (i.e., the request is granted");
 							task.totalTime++;
-							released[cur.resource-1] +=cur.claim;
+							released[cur.resource-1] +=cur.claim;//add to the total that'll be released at the end of the cycle
 							task.curDelay = task.act.get(++pointer[task.pos]).delay;
 							task.cur[cur.resource-1] -=cur.claim;
 							break;
@@ -122,16 +119,17 @@ public class RunAllcator {
 				}
 
 			}
+			//remove all the unblocked tasks from the list
 			for(Task canRun: unblocked) {
 				blocked.remove(canRun);
 				canRun.isBlocked = false;
 			}
-			for(int l = 0; l<resources.length;l++) {
+			for(int l = 0; l<resources.length;l++) {//release resources
 				resources[l].available += released[l];
 			}
 			//if there is a deadlock
 			if(blocked.size() == tasks.length-finish) {
-				if(lastDead) {//adjust for aborting more than one task in a cycle
+				if(lastDead) {//adjust times for aborting more than one task in a cycle
 					for(Task ta : tasks) {
 						if(!ta.isFinished) {
 							ta.totalTime--;
@@ -159,8 +157,6 @@ public class RunAllcator {
 			else {
 				lastDead = false;
 			}
-
-			System.out.println("");
 		}
 		
 		int total = 0;
@@ -181,6 +177,7 @@ public class RunAllcator {
 		System.out.printf("Total:   %7d %2d %2d %%\n",total,totalWait,Math.round(((double)totalWait)/total*100));
 	}
 	
+	//Banker algorithm for resource allocation
 	public static void Banker(Resource[] resources, Task[] tasks) {
 		int finish = 0;
 		ArrayList<Task> blocked = new ArrayList<>();
@@ -195,11 +192,12 @@ public class RunAllcator {
 			for(Task bl: blocked) {
 				bl.totalTime++;
 				Activity cur = bl.act.get(pointer[bl.pos]);
+				//if the resources can be safely allocated
 				if(grantSafe(resources,tasks,bl.pos,cur.resource-1,cur.claim)) {
 					bl.curDelay = bl.act.get(++pointer[bl.pos]).delay;
 					unblocked.add(bl);		
 				}
-				else if(bl.isAborted) {
+				else if(bl.isAborted) {//add to the aborted list to release all resources at the end of the cycle
 					unblocked.add(bl);
 					abort.add(bl);
 					finish++;
@@ -225,6 +223,7 @@ public class RunAllcator {
 						case("initiate"):
 							task.claims[cur.resource-1] = cur.claim;
 							if(cur.claim>resources[cur.resource-1].total) {
+								//if the claim is larger than what the system has,abort the task
 								System.out.println("Invalid initial claim. Aborted");
 								task.isAborted = true;
 								task.isFinished = true;
@@ -240,11 +239,12 @@ public class RunAllcator {
 							if(grantSafe(resources,tasks,task.pos,cur.resource-1,cur.claim)) {
 								task.curDelay = task.act.get(++pointer[task.pos]).delay;
 							}
-							//if grantSaft returned false because of unsafe state
+							//if grantSafe returned false because of aborted task
 							else if(task.isAborted) {
 								abort.add(task);
 								finish++;
 							}
+							//if grantSafe returned false because of unsafe request
 							else {
 								blocked.add(task);
 								task.isBlocked = true;
@@ -267,16 +267,19 @@ public class RunAllcator {
 				}
 
 			}
+			//unblock tasks 
 			for(Task canRun: unblocked) {
 				blocked.remove(canRun);
 				canRun.isBlocked = false;
 			}
+			//release resources from the aborted tasks
 			for(Task t : abort) {
 				for(int j = 0; j<resources.length;j++) {
 					resources[j].available += t.cur[j];
 					t.cur[j] = 0;
 				}
 			}
+			//release resources from release activities
 			for(int l = 0; l<resources.length;l++) {
 				resources[l].available += released[l];
 			}
@@ -299,7 +302,9 @@ public class RunAllcator {
 		}
 		System.out.printf("Total:   %7d %2d %2d %%\n",total,totalWait,Math.round(((double)totalWait)/total*100));
 	}
-	//grant the claim if it is safe 
+	
+	
+	//grant the claim if it is safe, return false and remain in original state otherwise. 
 	public static boolean grantSafe(Resource[] resources, Task[] tasks, int taskNum, int wantedR, int number) {	
 		//suppose it's granted
 		resources[wantedR].available -= number;
@@ -325,7 +330,9 @@ public class RunAllcator {
 		return true;
 		
 	}
-	//check if the claim can be granted
+	//check if the request is safe. Assume each task will request for the maximum resources they can request,
+	//see which task can be terminate; after it terminates and releases the resources, repeat the procession all other 
+	//tasks, or until deadlock is reached(aka the status is not safe. 
 	public static boolean isSafe(Resource[] res, Task[] tasks) {
 		int[] available = new int[res.length];
 		for(int i = 0;i<res.length;i++) {//deep copy the arrays for simulation
@@ -339,16 +346,16 @@ public class RunAllcator {
 				totalFinished++;
 				finished[i] = true;//if a task is done before safety checking
 			}
-		}
+		}//when there is still unfinished tasks, continue looping all tasks
 		while(totalFinished != tasks.length) {
-			boolean isDead = true;
+			boolean isDead = true;//flag to check if there is a deadlock
 			for(int i = 0; i<tasks.length;i++) {
 				int[] curClaim = getMaxClaim(tasks[i].claims,tasks[i].cur);
 				if(!finished[i] && isAllowed(curClaim,available)) {// if a task is not done and the claim can be satisfied
 					available = grant(available,tasks[i].cur);
 					finished[i] = true;
 					totalFinished++;
-					isDead = false;//flip the flag if something can be granted
+					isDead = false;//flip the flag if something can be granted, not a deadlock 
 				}
 			}
 			if(totalFinished == tasks.length) {
@@ -360,7 +367,8 @@ public class RunAllcator {
 		}
 		return false;
 	}
-	//get the maximum possible claim of each task
+	
+	//get the maximum possible request of each task
 	public static int[] getMaxClaim(int[] claim, int[] occupied) {
 		int[] result = new int[claim.length];
 		for(int i = 0;i<claim.length;i++) {
@@ -369,6 +377,7 @@ public class RunAllcator {
 		return result;
 	}
 	
+	//check if there is enough resource to satisfy the maximum request
 	public static boolean isAllowed(int[]curClaim,int[] avail) {	
 		for(int i = 0;i<curClaim.length;i++) {
 			if(curClaim[i]>avail[i]) {
@@ -377,6 +386,7 @@ public class RunAllcator {
 		}
 		return true;
 	}
+	//grant resources to a request
 	public static int[] grant(int[] resources, int[] claims) {
 		for(int i =0;i<resources.length;i++) {
 			resources[i] += claims[i];

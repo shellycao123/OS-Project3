@@ -1,6 +1,7 @@
 package project3;
 import java.util.*;
 
+//represent each task in the system
 public class Task {
 	//data field
 	ArrayList<Activity> act = new ArrayList<>();
